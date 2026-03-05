@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -22,6 +23,12 @@ public class PagamentoController {
     @GetMapping
     public ResponseEntity<List<PagamentoResponseRecord>> recuperarTodos() {
         List<PagamentoResponseRecord> response = pagamentoService.recuperarTodos();
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<PagamentoResponseRecord> recuperarPorId(@PathVariable String id) {
+        PagamentoResponseRecord response = pagamentoService.recuperarPorId(id);
         return ResponseEntity.ok(response);
     }
 
