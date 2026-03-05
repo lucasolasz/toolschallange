@@ -6,19 +6,23 @@ import java.util.Optional;
 import org.springframework.stereotype.Service;
 
 import com.arphoenix.toolschallange.domain.entities.Transacao;
+import com.arphoenix.toolschallange.domain.mappers.TransacaoMapper;
+import com.arphoenix.toolschallange.domain.records.PagamentoResponseRecord;
 import com.arphoenix.toolschallange.domain.repositories.TransacaoRepository;
 
+import lombok.RequiredArgsConstructor;
+
 @Service
+@RequiredArgsConstructor
 public class PagamentoService {
 
     private final TransacaoRepository transacaoRepository;
+    private final TransacaoMapper mapper;
 
-    public PagamentoService(TransacaoRepository transacaoRepository) {
-        this.transacaoRepository = transacaoRepository;
-    }
-
-    public List<Transacao> recuperarTodos() {
-        return transacaoRepository.findAll();
+    public List<PagamentoResponseRecord> recuperarTodos() {
+        return transacaoRepository.findAll().stream()
+                .map(mapper::toResponse)
+                .toList();
     }
 
     public Optional<Transacao> recuperarPorId(String id) {
