@@ -1,10 +1,7 @@
 package com.arphoenix.toolschallange.domain.entities;
 
-import java.util.UUID;
-
 import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -15,11 +12,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Transacao {
-
-
     @Id
-    @GeneratedValue
-    private UUID id;
+    private String id;
 
     private String cartao;
 
