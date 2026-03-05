@@ -1,10 +1,13 @@
 package com.arphoenix.toolschallange.domain.mappers;
 
+import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
 import com.arphoenix.toolschallange.domain.entities.Transacao;
+import com.arphoenix.toolschallange.domain.records.PagamentoRequestRecord;
 import com.arphoenix.toolschallange.domain.records.PagamentoResponseRecord;
 
+@Mapper(componentModel = "spring")
 public interface TransacaoMapper {
 
     @Mapping(source = "id", target = "transacao.id")
@@ -17,5 +20,5 @@ public interface TransacaoMapper {
     @Mapping(target = "cartao", source = "transacao.cartao")
     @Mapping(target = "descricao", source = "transacao.descricao")
     @Mapping(target = "formaPagamento", source = "transacao.formaPagamento")
-    Transacao toEntity(com.arphoenix.toolschallange.domain.records.PagamentoRequestRecord request);
+    Transacao toEntity(PagamentoRequestRecord request);
 }
