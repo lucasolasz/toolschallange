@@ -1,7 +1,6 @@
 package com.arphoenix.toolschallange.service;
 
 import java.util.List;
-import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 
@@ -9,6 +8,7 @@ import com.arphoenix.toolschallange.domain.entities.Transacao;
 import com.arphoenix.toolschallange.domain.mappers.TransacaoMapper;
 import com.arphoenix.toolschallange.domain.records.PagamentoResponseRecord;
 import com.arphoenix.toolschallange.domain.repositories.TransacaoRepository;
+import com.arphoenix.toolschallange.exception.NotFoundException;
 
 import lombok.RequiredArgsConstructor;
 
@@ -25,11 +25,12 @@ public class PagamentoService {
                 .toList();
     }
 
-    public Optional<Transacao> recuperarPorId(String id) {
+    public PagamentoResponseRecord recuperarPorId(String id) {
         if (id == null) {
-            return Optional.empty();
+            throw new IllegalArgumentException("ID não pode ser nulo");
         }
-        return transacaoRepository.findById(id);
+        return transacaoRepository.findById(id).map(mapper::toResponse)
+                .orElseThrow(() -> new NotFoundException("Transação com ID " + id + " não encontrada."));
     }
 
     public Transacao gravar(Transacao transacao) {
