@@ -5,7 +5,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,7 +34,7 @@ public class PagamentoService {
     private final TransacaoMapper mapper;
     private final PagamentoProducer pagamentoProducer;
 
-    private final Map<String, CompletableFuture<Transacao>> espera = new ConcurrentHashMap<>();
+    private final Map<String, CompletableFuture<PagamentoResponseRecord>> espera = new ConcurrentHashMap<>();
 
     public List<PagamentoResponseRecord> recuperarTodos() {
         return transacaoRepository.findAll().stream()
@@ -48,26 +50,18 @@ public class PagamentoService {
                 .orElseThrow(() -> new NotFoundException("Transação com ID " + id + " não encontrada."));
     }
 
-    // public void finalizarTransacao(PagamentoResponseRecord response) {
-    // String id = response.transacao().id();
-    // Transacao transacao = transacaoRepository.findById(id)
-    // .orElseThrow(() -> new NotFoundException("Transação com ID " + id + " não
-    // encontrada."));
-    // preencheObjetoDoBancoComObjetoRespose(response, transacao);
-    // transacaoRepository.save(transacao);
-    // LOGGER.info("Transação {} finalizada com NSU: {}, Código Autorização: {},
-    // Status: {}",
-    // id, transacao.getNsu(), transacao.getCodigoAutorizacao(),
-    // transacao.getStatus());
-    // }
+    public PagamentoResponseRecord finalizarTransacao(PagamentoResponseRecord response) {
 
-    // private void preencheObjetoDoBancoComObjetoRespose(PagamentoResponseRecord
-    // response, Transacao transacao) {
-    // transacao.setNsu(response.transacao().descricao().nsu());
-    // transacao.setCodigoAutorizacao(response.transacao().descricao().codigoAutorizacao());
-    // transacao.setStatus(response.transacao().descricao().status());
+        Transacao transacao = mapper.toEntityFromResponse(response);
 
-    // }
+        transacao = transacaoRepository.save(transacao);
+
+        LOGGER.info("Transação {} finalizada com NSU: {}, Código Autorização: {}, Status: {}",
+                transacao.getId(), transacao.getDescricao().getNsu(), transacao.getDescricao().getCodigoAutorizacao(),
+                transacao.getDescricao().getStatus());
+
+        return response;
+    }
 
     public Transacao gravar(Transacao transacao) {
         if (transacao == null) {
@@ -81,7 +75,7 @@ public class PagamentoService {
         String requestId = request.transacao().id();
         LOGGER.info("Processando pagamento para ID: {}", requestId);
 
-        CompletableFuture<Transacao> promessa = new CompletableFuture<>();
+        CompletableFuture<PagamentoResponseRecord> promessa = new CompletableFuture<>();
         espera.put(requestId, promessa);
 
         this.validarCamposRequestAntesDePersistir(request);
@@ -91,48 +85,57 @@ public class PagamentoService {
 
         // Simulacao de espera ativa, aguardando o microservico de autorizacao processar
         // e enviar a resposta
-        // para o tópico "vendas-finalizadas"
+        // o tópico "vendas-finalizadas"
         try {
-            Transacao transacaoFinalizada = promessa.get(4, TimeUnit.SECONDS);
-            return mapper.toResponse(transacaoFinalizada);
+            PagamentoResponseRecord responseFinalizada = promessa.get(4, TimeUnit.SECONDS);
 
-        } catch (Exception e) {
-            espera.remove(requestId);
+            LOGGER.info("Resposta recebida para transação {}", requestId);
+
+            return responseFinalizada;
+
+        } catch (TimeoutException | TempoExcedidoRequisicaoException e) {
+            LOGGER.warn("Timeout aguardando autorização para transação {}", requestId);
+
             throw new TempoExcedidoRequisicaoException(
                     "O sistema de autorização demorou a responder. Tente novamente mais tarde.");
+
+        } catch (ExecutionException | InterruptedException e) {
+
+            LOGGER.error("Erro ao aguardar resposta da autorização", e);
+
+            throw new RuntimeException("Erro ao processar autorização da transação");
+
         } finally {
+
             espera.remove(requestId);
         }
 
-        // Transacao transacao = mapper.toEntity(request);
-        // transacao = transacaoRepository.save(transacao);
-
-        // LOGGER.info("Pagamento processado e enviado para tópico vendas-pendentes:
-        // {}", request.transacao().id());
-        // return mapper.toResponse(transacao);
     }
 
     // Método que o Consumer vai chamar para "acordar" o Service
-    public void liberarResposta(Transacao transacao) {
-        CompletableFuture<Transacao> promessa = espera.get(transacao.getId());
+    public void liberarResposta(PagamentoResponseRecord response) {
+        CompletableFuture<PagamentoResponseRecord> promessa = espera.get(response.transacao().id());
         if (promessa != null) {
-            promessa.complete(transacao); // Entrega o objeto e desbloqueia o GET lá em cima
+            LOGGER.info("Liberando resposta da transação {}", response.transacao().id());
+            promessa.complete(response);
         }
     }
 
     private void validarCamposRequestAntesDePersistir(PagamentoRequestRecord request) {
+
         if (request == null) {
             throw new IllegalArgumentException("PagamentoRequestRecord não pode ser nulo");
         }
 
-        // Validação de unicidade do ID
-        if (verificaSeIdExiste(request.transacao().id())) {
-            throw new IllegalArgumentException("Transação com ID " + request.transacao().id() + " já existe.");
+        String id = request.transacao().id();
+        if (id != null && verificaSeIdExiste(id)) {
+            throw new IllegalArgumentException(
+                    "Transação com ID " + id + " já existe.");
         }
 
-        // Validação de dataHora não futura
         if (request.transacao().descricao().dataHora().isAfter(LocalDateTime.now())) {
-            throw new IllegalArgumentException("A data e hora da transação não pode ser no futuro.");
+            throw new IllegalArgumentException(
+                    "A data e hora da transação não pode ser no futuro.");
         }
     }
 
