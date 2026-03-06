@@ -1,9 +1,11 @@
 package com.arphoenix.toolschallange.service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 
 import com.arphoenix.toolschallange.domain.entities.Transacao;
@@ -47,10 +49,9 @@ public class PagamentoService {
     }
 
     public PagamentoResponseRecord processarPagamento(PagamentoRequestRecord request) {
-        if (request == null) {
-            throw new IllegalArgumentException("PagamentoRequestRecord não pode ser nulo");
-        }
         LOGGER.info("Processando pagamento para ID: {}", request.transacao().id());
+
+        validarRequest(request);
 
         Transacao transacao = mapper.toEntity(request);
         transacao = transacaoRepository.save(transacao);
@@ -59,6 +60,26 @@ public class PagamentoService {
 
         LOGGER.info("Pagamento processado e enviado para tópico vendas-pendentes: {}", request.transacao().id());
         return mapper.toResponse(transacao);
+    }
+
+    private void validarRequest(PagamentoRequestRecord request) {
+        if (request == null) {
+            throw new IllegalArgumentException("PagamentoRequestRecord não pode ser nulo");
+        }
+
+        // Validação de unicidade do ID
+        if (verificaSeIdExiste(request.transacao().id())) {
+            throw new IllegalArgumentException("Transação com ID " + request.transacao().id() + " já existe.");
+        }
+
+        // Validação de dataHora não futura
+        if (request.transacao().descricao().dataHora().isAfter(LocalDateTime.now())) {
+            throw new IllegalArgumentException("A data e hora da transação não pode ser no futuro.");
+        }
+    }
+
+    private boolean verificaSeIdExiste(@NonNull String id) {
+        return transacaoRepository.existsById(id);
     }
 
 }
