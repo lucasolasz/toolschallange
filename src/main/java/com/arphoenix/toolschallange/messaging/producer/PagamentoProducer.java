@@ -14,7 +14,7 @@ public class PagamentoProducer {
         this.kafkaTemplate = kafkaTemplate;
     }
 
-    public void sendPagamento(PagamentoRequestRecord pagamento) {
+    public void enviarPagamentoParaTopico(PagamentoRequestRecord pagamento) {
         kafkaTemplate.send("vendas-pendentes", pagamento);
     }
 

@@ -22,4 +22,11 @@ public class PagamentoExceptionHandler {
         // Para IDs nulos ou argumentos inválidos, usamos BAD_REQUEST (400)
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
     }
+
+    @ExceptionHandler(TempoExcedidoRequisicaoException.class)
+    public ResponseEntity<ErrorResponseRecord> handleTempoExcedido(TempoExcedidoRequisicaoException exception) {
+        ErrorResponseRecord errorResponse = new ErrorResponseRecord(exception.getMessage(),
+                HttpStatus.REQUEST_TIMEOUT.toString());
+        return ResponseEntity.status(HttpStatus.REQUEST_TIMEOUT).body(errorResponse);
+    }
 }
