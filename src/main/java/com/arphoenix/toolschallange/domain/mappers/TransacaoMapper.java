@@ -21,4 +21,10 @@ public interface TransacaoMapper {
     @Mapping(target = "descricao", source = "transacao.descricao")
     @Mapping(target = "formaPagamento", source = "transacao.formaPagamento")
     Transacao toEntity(PagamentoRequestRecord request);
+
+    @Mapping(target = "id", source = "transacao.id")
+    @Mapping(target = "cartao", source = "transacao.cartao")
+    @Mapping(target = "descricao", source = "transacao.descricao")
+    @Mapping(target = "formaPagamento", source = "transacao.formaPagamento")
+    Transacao toEntityFromResponse(PagamentoResponseRecord response);
 }
