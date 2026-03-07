@@ -76,11 +76,12 @@ public class PagamentoService {
         }
     }
 
+    @Transactional
     public PagamentoResponseRecord finalizarTransacao(PagamentoResponseRecord response) {
 
         Transacao transacao = mapper.toEntityFromResponse(response);
 
-        transacao = transacaoRepository.save(transacao);
+        transacao = this.gravar(transacao);
 
         LOGGER.info("Transação {} finalizada com NSU: {}, Código Autorização: {}, Status: {}",
                 transacao.getId(), transacao.getDescricao().getNsu(), transacao.getDescricao().getCodigoAutorizacao(),
@@ -89,6 +90,7 @@ public class PagamentoService {
         return response;
     }
 
+    @Transactional
     public Transacao gravar(Transacao transacao) {
         if (transacao == null) {
             throw new IllegalArgumentException("Transação não pode ser nula");
