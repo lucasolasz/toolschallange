@@ -36,6 +36,12 @@ public class PagamentoController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/estorno/{id}")
+    public ResponseEntity<PagamentoResponseRecord> estornar(@PathVariable String id) {
+        PagamentoResponseRecord response = pagamentoService.estornar(id);
+        return ResponseEntity.ok(response);
+    }
+
     @PostMapping
     public ResponseEntity<PagamentoResponseRecord> processarPagamento(
             @Valid @RequestBody PagamentoRequestRecord request) {

@@ -15,6 +15,7 @@ import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 
 import com.arphoenix.toolschallange.domain.entities.Transacao;
+import com.arphoenix.toolschallange.domain.enums.StatusTransacao;
 import com.arphoenix.toolschallange.domain.mappers.TransacaoMapper;
 import com.arphoenix.toolschallange.domain.records.PagamentoRequestRecord;
 import com.arphoenix.toolschallange.domain.records.PagamentoResponseRecord;
@@ -48,6 +49,33 @@ public class PagamentoService {
         }
         return transacaoRepository.findById(id).map(mapper::toResponse)
                 .orElseThrow(() -> new NotFoundException("Transação com ID " + id + " não encontrada."));
+    }
+
+    public PagamentoResponseRecord estornar(String id) {
+        if (id == null) {
+            throw new IllegalArgumentException("ID não pode ser nulo");
+        }
+        Transacao transacao = transacaoRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Transação com ID " + id + " não encontrada."));
+
+        validarEstorno(transacao);
+
+        transacao.getDescricao().setStatus(StatusTransacao.CANCELADO);
+        transacao = transacaoRepository.save(transacao);
+
+        LOGGER.info("Transação {} estornada com status CANCELADO", transacao.getId());
+
+        return mapper.toResponse(transacao);
+    }
+
+    private void validarEstorno(Transacao transacao) {
+        StatusTransacao status = transacao.getDescricao().getStatus();
+        if (status == StatusTransacao.CANCELADO) {
+            throw new IllegalArgumentException("Não é possível estornar uma transação já cancelada.");
+        }
+        if (status == StatusTransacao.NEGADO) {
+            throw new IllegalArgumentException("Não é possível estornar uma transação negada.");
+        }
     }
 
     public PagamentoResponseRecord finalizarTransacao(PagamentoResponseRecord response) {
@@ -84,8 +112,7 @@ public class PagamentoService {
         LOGGER.info("Pagamento processado e enviado para tópico vendas-pendentes:  {}", request.transacao().id());
 
         // Simulacao de espera ativa, aguardando o microservico de autorizacao processar
-        // e enviar a resposta
-        // o tópico "vendas-finalizadas"
+        // e enviar a resposta para o tópico "vendas-finalizadas"
         try {
             PagamentoResponseRecord responseFinalizada = promessa.get(4, TimeUnit.SECONDS);
 
