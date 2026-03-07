@@ -48,6 +48,14 @@ public class PagamentoService {
         if (id == null) {
             throw new IllegalArgumentException("ID não pode ser nulo");
         }
+        try {
+            long idNum = Long.parseLong(id);
+            if (idNum <= 0) {
+                throw new IllegalArgumentException("ID deve ser um número positivo maior que zero");
+            }
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("ID deve ser um número válido");
+        }
         return transacaoRepository.findById(id).map(mapper::toResponse)
                 .orElseThrow(() -> new NotFoundException("Transação com ID " + id + " não encontrada."));
     }
@@ -55,6 +63,14 @@ public class PagamentoService {
     public PagamentoResponseRecord estornar(String id) {
         if (id == null) {
             throw new IllegalArgumentException("ID não pode ser nulo");
+        }
+        try {
+            long idNum = Long.parseLong(id);
+            if (idNum <= 0) {
+                throw new IllegalArgumentException("ID deve ser um número positivo maior que zero");
+            }
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("ID deve ser um número válido");
         }
         Transacao transacao = transacaoRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Transação com ID " + id + " não encontrada."));
@@ -156,6 +172,15 @@ public class PagamentoService {
         }
 
         String id = request.transacao().id();
+        try {
+            long idNum = Long.parseLong(id);
+            if (idNum <= 0) {
+                throw new IllegalArgumentException("ID deve ser um número positivo maior que zero");
+            }
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("ID deve ser um número válido");
+        }
+
         if (id != null && verificaSeIdExiste(id)) {
             throw new IllegalArgumentException(
                     "Transação com ID " + id + " já existe.");
