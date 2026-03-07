@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 
 import com.arphoenix.toolschallange.domain.entities.Transacao;
 import com.arphoenix.toolschallange.domain.enums.StatusTransacao;
+import com.arphoenix.toolschallange.domain.enums.TipoPagamento;
 import com.arphoenix.toolschallange.domain.mappers.TransacaoMapper;
 import com.arphoenix.toolschallange.domain.records.PagamentoRequestRecord;
 import com.arphoenix.toolschallange.domain.records.PagamentoResponseRecord;
@@ -163,6 +164,16 @@ public class PagamentoService {
         if (request.transacao().descricao().dataHora().isAfter(LocalDateTime.now())) {
             throw new IllegalArgumentException(
                     "A data e hora da transação não pode ser no futuro.");
+        }
+
+        TipoPagamento tipo = request.transacao().formaPagamento().tipo();
+        Integer parcelas = request.transacao().formaPagamento().parcelas();
+        if (tipo == TipoPagamento.AVISTA && parcelas != 1) {
+            throw new IllegalArgumentException("Para pagamentos à vista, o número de parcelas deve ser exatamente 1.");
+        }
+        if ((tipo == TipoPagamento.PARCELADO_LOJA || tipo == TipoPagamento.PARCELADO_EMISSOR) && parcelas < 2) {
+            throw new IllegalArgumentException(
+                    "Para pagamentos parcelados, o número de parcelas deve ser no mínimo 2.");
         }
     }
 
