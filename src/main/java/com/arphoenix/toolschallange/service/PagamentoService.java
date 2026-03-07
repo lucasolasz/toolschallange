@@ -25,6 +25,7 @@ import com.arphoenix.toolschallange.exception.NotFoundException;
 import com.arphoenix.toolschallange.exception.TempoExcedidoRequisicaoException;
 import com.arphoenix.toolschallange.messaging.producer.PagamentoProducer;
 
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -45,37 +46,17 @@ public class PagamentoService {
     }
 
     public PagamentoResponseRecord recuperarPorId(String id) {
-        if (id == null) {
-            throw new IllegalArgumentException("ID não pode ser nulo");
-        }
-        try {
-            long idNum = Long.parseLong(id);
-            if (idNum <= 0) {
-                throw new IllegalArgumentException("ID deve ser um número positivo maior que zero");
-            }
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("ID deve ser um número válido");
-        }
-        return transacaoRepository.findById(id).map(mapper::toResponse)
-                .orElseThrow(() -> new NotFoundException("Transação com ID " + id + " não encontrada."));
+        return transacaoRepository.findById(this.validarERetornarId(id))
+                .map(mapper::toResponse)
+                .orElseThrow(() -> new NotFoundException("Transação " + id + " não encontrada."));
     }
 
+    @Transactional
     public PagamentoResponseRecord estornar(String id) {
-        if (id == null) {
-            throw new IllegalArgumentException("ID não pode ser nulo");
-        }
-        try {
-            long idNum = Long.parseLong(id);
-            if (idNum <= 0) {
-                throw new IllegalArgumentException("ID deve ser um número positivo maior que zero");
-            }
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("ID deve ser um número válido");
-        }
-        Transacao transacao = transacaoRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Transação com ID " + id + " não encontrada."));
+        Transacao transacao = transacaoRepository.findById(this.validarERetornarId(id))
+                .orElseThrow(() -> new NotFoundException("Transação " + id + " não encontrada."));
 
-        validarEstorno(transacao);
+        this.validarEstorno(transacao);
 
         transacao.getDescricao().setStatus(StatusTransacao.CANCELADO);
         transacao = transacaoRepository.save(transacao);
@@ -123,7 +104,7 @@ public class PagamentoService {
         CompletableFuture<PagamentoResponseRecord> promessa = new CompletableFuture<>();
         espera.put(requestId, promessa);
 
-        this.validarCamposRequestAntesDePersistir(request);
+        this.validarCamposRequestProcessamentoAntesDePersistir(request);
 
         this.pagamentoProducer.enviarPagamentoParaTopico(request);
         LOGGER.info("Pagamento processado e enviado para tópico vendas-pendentes:  {}", request.transacao().id());
@@ -132,25 +113,17 @@ public class PagamentoService {
         // e enviar a resposta para o tópico "vendas-finalizadas"
         try {
             PagamentoResponseRecord responseFinalizada = promessa.get(4, TimeUnit.SECONDS);
-
             LOGGER.info("Resposta recebida para transação {}", requestId);
-
             return responseFinalizada;
 
         } catch (TimeoutException | TempoExcedidoRequisicaoException e) {
             LOGGER.warn("Timeout aguardando autorização para transação {}", requestId);
-
             throw new TempoExcedidoRequisicaoException(
                     "O sistema de autorização demorou a responder. Tente novamente mais tarde.");
-
         } catch (ExecutionException | InterruptedException e) {
-
             LOGGER.error("Erro ao aguardar resposta da autorização", e);
-
             throw new RuntimeException("Erro ao processar autorização da transação");
-
         } finally {
-
             espera.remove(requestId);
         }
 
@@ -165,21 +138,13 @@ public class PagamentoService {
         }
     }
 
-    private void validarCamposRequestAntesDePersistir(PagamentoRequestRecord request) {
+    private void validarCamposRequestProcessamentoAntesDePersistir(PagamentoRequestRecord request) {
 
         if (request == null) {
-            throw new IllegalArgumentException("PagamentoRequestRecord não pode ser nulo");
+            throw new IllegalArgumentException("Corpo da requisição não pode ser nulo");
         }
 
-        String id = request.transacao().id();
-        try {
-            long idNum = Long.parseLong(id);
-            if (idNum <= 0) {
-                throw new IllegalArgumentException("ID deve ser um número positivo maior que zero");
-            }
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("ID deve ser um número válido");
-        }
+        String id = this.validarERetornarId(request.transacao().id());
 
         if (id != null && verificaSeIdExiste(id)) {
             throw new IllegalArgumentException(
@@ -191,19 +156,35 @@ public class PagamentoService {
                     "A data e hora da transação não pode ser no futuro.");
         }
 
-        TipoPagamento tipo = request.transacao().formaPagamento().tipo();
-        Integer parcelas = request.transacao().formaPagamento().parcelas();
-        if (tipo == TipoPagamento.AVISTA && parcelas != 1) {
-            throw new IllegalArgumentException("Para pagamentos à vista, o número de parcelas deve ser exatamente 1.");
-        }
-        if ((tipo == TipoPagamento.PARCELADO_LOJA || tipo == TipoPagamento.PARCELADO_EMISSOR) && parcelas < 2) {
-            throw new IllegalArgumentException(
-                    "Para pagamentos parcelados, o número de parcelas deve ser no mínimo 2.");
-        }
+        this.validarRegraParcelas(request);
     }
 
     private boolean verificaSeIdExiste(@NonNull String id) {
         return transacaoRepository.existsById(id);
+    }
+
+    private @NonNull String validarERetornarId(String id) {
+        if (id == null || id.isBlank())
+            throw new IllegalArgumentException("ID não pode ser nulo");
+        try {
+            if (Long.parseLong(id) <= 0)
+                throw new IllegalArgumentException("ID deve ser positivo");
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("ID deve ser numérico");
+        }
+        return id;
+    }
+
+    private void validarRegraParcelas(PagamentoRequestRecord request) {
+        var tipo = request.transacao().formaPagamento().tipo();
+        var parcelas = request.transacao().formaPagamento().parcelas();
+
+        boolean invalidoAvista = (tipo == TipoPagamento.AVISTA && parcelas != 1);
+        boolean invalidoParcelado = (tipo.isParcelado() && parcelas < 2);
+
+        if (invalidoAvista || invalidoParcelado) {
+            throw new IllegalArgumentException("Número de parcelas incompatível com tipo de pagamento");
+        }
     }
 
 }
