@@ -10,21 +10,15 @@ import com.arphoenix.toolschallange.domain.records.PagamentoResponseRecord;
 @Mapper(componentModel = "spring")
 public interface TransacaoMapper {
 
-    @Mapping(source = "id", target = "transacao.id")
-    @Mapping(source = "cartao", target = "transacao.cartao")
-    @Mapping(source = "descricao", target = "transacao.descricao")
-    @Mapping(source = "formaPagamento", target = "transacao.formaPagamento")
+    @Mapping(target = "transacao", source = ".")
     PagamentoResponseRecord toResponse(Transacao entity);
 
-    @Mapping(target = "id", source = "transacao.id")
-    @Mapping(target = "cartao", source = "transacao.cartao")
-    @Mapping(target = "descricao", source = "transacao.descricao")
-    @Mapping(target = "formaPagamento", source = "transacao.formaPagamento")
+    @Mapping(target = ".", source = "transacao")
+    @Mapping(target = "descricao.nsu", ignore = true)
+    @Mapping(target = "descricao.codigoAutorizacao", ignore = true)
+    @Mapping(target = "descricao.status", ignore = true)
     Transacao toEntity(PagamentoRequestRecord request);
 
-    @Mapping(target = "id", source = "transacao.id")
-    @Mapping(target = "cartao", source = "transacao.cartao")
-    @Mapping(target = "descricao", source = "transacao.descricao")
-    @Mapping(target = "formaPagamento", source = "transacao.formaPagamento")
+    @Mapping(target = ".", source = "transacao")
     Transacao toEntityFromResponse(PagamentoResponseRecord response);
 }
