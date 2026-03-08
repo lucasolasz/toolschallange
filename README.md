@@ -97,19 +97,28 @@ desafio-arphoenix/
    cd desafio-arphoenix
    ```
 
-2. **Iniciar o Kafka**:
+2. **Configurar Variáveis de Ambiente**:
+   Copie os arquivos de exemplo para definir o IP do Kafka (necessário para Docker e Spring Boot).
+   ```bash
+   # Na pasta raiz do projeto
+   cp toolschallange/.env.example toolschallange/.env
+   cp toolschallangeAutorizador/.env.example toolschallangeAutorizador/.env
+   ```
+   *Nota: O valor padrão é `127.0.0.1` (localhost). Se estiver rodando em nuvem ou IP específico, edite os arquivos `.env` gerados.*
+
+3. **Iniciar o Kafka**:
    ```bash
    cd toolschallange
    docker-compose up -d
    ```
 
-3. **Executar o Serviço Autorizador**:
+4. **Executar o Serviço Autorizador**:
    ```bash
    cd ../toolschallangeAutorizador
    mvn spring-boot:run
    ```
 
-4. **Executar o Serviço de Pagamentos** (em outro terminal):
+5. **Executar o Serviço de Pagamentos** (em outro terminal):
    ```bash
    cd ../toolschallange
    mvn spring-boot:run
