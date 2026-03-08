@@ -99,14 +99,13 @@ public class PagamentoService {
     }
 
     public PagamentoResponseRecord processarPagamento(PagamentoRequestRecord request) {
+        this.validarCamposRequestProcessamentoAntesDePersistir(request);
 
         String requestId = request.transacao().id();
         LOGGER.info("Processando pagamento para ID: {}", requestId);
 
         CompletableFuture<PagamentoResponseRecord> promessa = new CompletableFuture<>();
         espera.put(requestId, promessa);
-
-        this.validarCamposRequestProcessamentoAntesDePersistir(request);
 
         this.pagamentoProducer.enviarPagamentoParaTopico(request);
         LOGGER.info("Pagamento processado e enviado para tópico vendas-pendentes:  {}", request.transacao().id());
