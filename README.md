@@ -4,7 +4,7 @@
 
 Este projeto é uma solução desenvolvida como resposta a um desafio de programação, implementando um sistema distribuído de processamento de pagamentos. O sistema é composto por dois microsserviços independentes que se comunicam de forma assíncrona através de mensageria, simulando um fluxo real de autorização de transações financeiras.
 
-### 🎯 Objetivo do Desafio
+### Objetivo do Desafio
 
 O desafio consiste em criar uma arquitetura de microsserviços capaz de processar solicitações de pagamento de maneira eficiente e escalável. O sistema deve:
 
@@ -15,7 +15,7 @@ O desafio consiste em criar uma arquitetura de microsserviços capaz de processa
 - Retornar respostas com status atualizado das transações
 - Suportar operações de consulta e estorno de transações
 
-### 🏗️ Arquitetura do Sistema
+### Arquitetura do Sistema
 
 
 <img width="6013" height="2138" alt="Untitled-2026-03-05-0011" src="https://github.com/user-attachments/assets/a5e8b72b-ba30-4341-ae9a-1633afb36609" />
@@ -29,7 +29,7 @@ O projeto segue uma arquitetura de microsserviços com comunicação assíncrona
 
 A comunicação entre os serviços é realizada através do Apache Kafka, utilizando tópicos específicos para cada etapa do processo.
 
-## 🛠️ Tecnologias e Dependências Utilizadas
+## Tecnologias e Dependências Utilizadas
 
 ### Linguagem e Framework Principal
 - **Java 21**: Versão LTS mais recente, oferecendo recursos modernos da linguagem
@@ -180,16 +180,87 @@ GET /pagamentos/estorno/{id}
 
 ## 🧪 Testes
 
-Para executar os testes:
+### Estratégia de Testes
+O projeto adota uma abordagem de testes unitários isolados usando **Mockito** para mockar dependências externas, garantindo testes rápidos e confiáveis sem carregar o contexto Spring completo. Os testes focam na lógica de negócio, validações e interações entre componentes.
+
+### Como Executar os Testes
 ```bash
-# No diretório de cada serviço
+# Executar todos os testes
 mvn test
+
+# Executar testes específicos de uma classe
+mvn test -Dtest=PagamentoServiceTest
+
+# Executar com cobertura (se JaCoCo estiver configurado)
+mvn test jacoco:report
 ```
 
-Os testes incluem:
-- Testes unitários de serviços
-- Testes de integração com Kafka
-- Testes de repositórios JPA
+### Testes Implementados - PagamentoService
+
+Criamos **18 testes unitários** para a classe `PagamentoService`, cobrindo os principais métodos e cenários de uso. Os testes utilizam:
+- **JUnit 5** para estruturação
+- **Mockito** para isolamento de dependências
+- **AssertJ** para asserções fluentes
+
+#### 1. Método `recuperarTodos()`
+- **Cenário 1**: Lista vazia → Verifica retorno vazio e chamada ao repository
+- **Cenário 2**: Lista com transações → Verifica mapeamento correto via `TransacaoMapper`
+
+#### 2. Método `recuperarPorId(String id)`
+- **Cenário 1**: ID válido e encontrado → Verifica retorno e mapeamento
+- **Cenário 2**: ID válido mas não encontrado → Verifica `NotFoundException`
+- **Cenário 3-6**: IDs inválidos → Verifica `IllegalArgumentException` para:
+  - ID nulo
+  - ID vazio
+  - ID não numérico
+  - ID negativo
+
+#### 3. Método `estornar(String id)`
+- **Cenário 1**: Transação autorizada válida → Verifica mudança de status para `CANCELADO`
+- **Cenário 2**: Transação já cancelada → Verifica `IllegalArgumentException`
+- **Cenário 3**: Transação negada → Verifica `IllegalArgumentException`
+- **Cenário 4**: ID não encontrado → Verifica `NotFoundException`
+- **Cenário 5**: ID inválido → Verifica `IllegalArgumentException`
+
+#### 4. Método `processarPagamento(PagamentoRequestRecord request)`
+Foca nas validações antes do processamento assíncrono:
+- **Cenário 1**: Request nulo → Verifica `IllegalArgumentException`
+- **Cenário 2**: ID já existe → Verifica `IllegalArgumentException`
+- **Cenário 3**: Data futura → Verifica `IllegalArgumentException`
+- **Cenário 4**: Parcelas inválidas para AVISTA (>1) → Verifica `IllegalArgumentException`
+- **Cenário 5**: Parcelas inválidas para PARCELADO (1 parcela) → Verifica `IllegalArgumentException`
+
+#### 5. Método `liberarResposta(PagamentoResponseRecord response)`
+- **Cenário 1**: Teste básico de execução sem erro (map interno é private, ideal para integração)
+
+### Estrutura dos Testes
+```java
+@ExtendWith(MockitoExtension.class)
+class PagamentoServiceTest {
+
+    @Mock
+    private TransacaoRepository transacaoRepository;
+    
+    @Mock
+    private TransacaoMapper mapper;
+    
+    @Mock
+    private PagamentoProducer pagamentoProducer;
+    
+    @InjectMocks
+    private PagamentoService pagamentoService;
+
+    // Setup de objetos de teste
+    // Métodos de teste com Arrange-Act-Assert
+}
+```
+
+### Cobertura e Qualidade
+- **Cenários Positivos e Negativos**: Cada método testa fluxos normais e de erro
+- **Validações de Regras de Negócio**: Parcelas, datas, IDs
+- **Isolamento**: Mocks garantem testes unitários puros
+- **AssertJ**: Asserções legíveis e poderosas
+
 
 ## 📊 Decisões Técnicas
 
@@ -215,7 +286,3 @@ Os testes incluem:
 ## 🤝 Contribuição
 
 Este projeto foi desenvolvido como solução para um desafio técnico. Para sugestões ou melhorias, sinta-se à vontade para abrir issues ou pull requests.
-
-## 📄 Licença
-
-Este projeto é distribuído sob a licença MIT. Consulte o arquivo LICENSE para mais detalhes.
