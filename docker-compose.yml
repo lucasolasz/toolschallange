@@ -14,7 +14,7 @@ services:
 
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
 
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://137.131.242.32:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://${KAFKA_PUBLIC_IP:-127.0.0.1}:9092
 
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
 
@@ -37,6 +37,9 @@ services:
     container_name: kafka-ui
     restart: always
 
+    ports:
+      - "8080:8080"
+
     environment:
       KAFKA_CLUSTERS_0_NAME: kafka
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
@@ -46,11 +49,11 @@ services:
 
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.kafka-ui.rule=Host(`kafka.ltech.app.br`)"
+      - "traefik.http.routers.kafka-ui.rule=Host(`${KAFKA_UI_DOMAIN:-localhost}`)"
       - "traefik.http.routers.kafka-ui.entrypoints=websecure"
       - "traefik.http.routers.kafka-ui.tls.certresolver=myresolver"
       - "traefik.http.services.kafka-ui.loadbalancer.server.port=8080"
 
 networks:
   ltech-network:
-    external: true
+    driver: bridge
